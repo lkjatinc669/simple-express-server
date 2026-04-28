@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Request Logs</title>
+  <meta charset="UTF-8" />
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --muted: #94a3b8;
+      --border: #334155;
+      --accent: #38bdf8;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Arial;
+      background: var(--bg);
+      color: #e2e8f0;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: #020617;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+    }
+
+    input {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #020617;
+      color: white;
+    }
+
+    button {
+      background: var(--accent);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th {
+      text-align: left;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 12px;
+      background: #020617;
+    }
+
+    td {
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    tr:hover {
+      background: #334155;
+      cursor: pointer;
+    }
+
+    .badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .GET { background: #16a34a; }
+    .POST { background: #2563eb; }
+    .PUT { background: #f59e0b; }
+    .DELETE { background: #dc2626; }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* Modal */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .modal-content {
+      width: 80%;
+      height: 80%;
+      background: #020617;
+      border-radius: 10px;
+      padding: 20px;
+      overflow: auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    .modal h3 {
+      margin-top: 0;
+    }
+
+    .close {
+      float: right;
+      cursor: pointer;
+      color: red;
+      font-size: 18px;
+    }
+
+    pre {
+      background: var(--card);
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+      max-height: 200px;
+    }
+
+    .section {
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1 style="text-align: center; font-size: 48px;">Simple Express Server 4 Testing</h1>
+  <div class="controls">
+    <input id="search" placeholder="Search URL / method / IP..." oninput="filterLogs()" />
+    <button onclick="fetchLogs()">Refresh</button>
+  </div>
+</header>
+
+<div class="container">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Method</th>
+        <th>URL</th>
+        <th>IP</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">✖</span>
+    <h3>Request Details</h3>
+
+    <div class="section">
+      <h4>Headers</h4>
+      <pre id="headers"></pre>
+    </div>
+
+    <div class="section">
+      <h4>Body</h4>
+      <pre id="body"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+let logs = [];
+
+function fetchLogs() {
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", "/api/logs", true);
+
+  xhr.onload = function () {
+    if (xhr.status === 200) {
+      const res = JSON.parse(xhr.responseText);
+      logs = res.data || [];
+      renderTable(logs);
+    }
+  };
+
+  xhr.send();
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = "";
+
+  data.forEach(log => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${log.id}</td>
+      <td><span class="badge ${log.method}">${log.method}</span></td>
+      <td>${log.url}</td>
+      <td class="muted">${log.ip}</td>
+      <td class="muted">${log.created_at}</td>
+    `;
+
+    row.onclick = () => showDetails(log);
+    tbody.appendChild(row);
+  });
+}
+
+function showDetails(log) {
+  document.getElementById("modal").style.display = "flex";
+
+  // 🔹 Format BODY
+  let formattedBody = formatJSON(log.body);
+
+  // 🔹 Format HEADERS (you weren't parsing this before)
+  let formattedHeaders = formatJSON(log.headers);
+
+  document.getElementById("headers").textContent = formattedHeaders;
+  document.getElementById("body").textContent = formattedBody;
+}
+
+function formatJSON(data) {
+  try {
+    // If already object → stringify directly
+    if (typeof data === "object") {
+      return JSON.stringify(data, null, 2);
+    }
+
+    // If string → try parsing
+    return JSON.stringify(JSON.parse(data), null, 2);
+  } catch {
+    // fallback (non-JSON)
+    return data || "";
+  }
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+}
+
+function filterLogs() {
+  const query = document.getElementById("search").value.toLowerCase();
+
+  const filtered = logs.filter(log =>
+    (log.url || "").toLowerCase().includes(query) ||
+    (log.method || "").toLowerCase().includes(query) ||
+    (log.ip || "").toLowerCase().includes(query)
+  );
+
+  renderTable(filtered);
+}
+
+// initial load
+fetchLogs();
+
+// auto refresh
+setInterval(fetchLogs, 5000);
+</script>
+
+</body>
+</html>
