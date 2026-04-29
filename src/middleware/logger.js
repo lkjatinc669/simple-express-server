@@ -1,7 +1,7 @@
 const db = require("../db/sqlite");
 
 // 🔹 Utility functions
-const getMethodColor = require("../utils/getmethodcolor")
+const {colors, getMethodColor} = require("../utils/getmethodcolor")
 const pad = require("../utils/pad")
 const compactBody = require("../utils/compactbody")
 

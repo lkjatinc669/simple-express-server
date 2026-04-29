@@ -24,4 +24,4 @@ function getMethodColor(method) {
     }
 }
 
-module.exports = getMethodColor
+module.exports = {colors, getMethodColor} 
